@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="row">
+  <div class="col-md-4"></div>
+  <div class="col-md-4">
+    <main class="form-signin w-100 m-auto">
+      <form role="form" method="post" action="">
+        {{ form.csrf_token }}
+        <h1 class="h3 mb-3 fw-normal text-center">Please register</h1>
+
+        <div class="form-floating">
+          {{ form.username(placeholder="username", class="form-control mb-2") }}
+          {{ form.username.label }}
+            {% if form.username.errors %}
+              {% for error in form.username.errors %}
+                <div class="alert alert-danger" role="alert">
+                  {{ error }}
+                </div>
+              {% endfor %}
+            {% endif %}
+        </div>
+        <div class="form-floating">
+          {{ form.email(placeholder="email", class="form-control mb-2") }}
+          {{ form.email.label }}
+            {% if form.email.errors %}
+              {% for error in form.email.errors %}
+                <div class="alert alert-danger" role="alert">
+                  {{ error }}
+                </div>
+              {% endfor %}
+            {% endif %}
+        </div>
+        <div class="form-floating">
+            {{ form.password(placeholder="password", class="form-control mb-2", id="password") }}
+            {{ form.password.label }}
+            <div nonce="{{ csp_nonce() }}" class="progress mt-2" style="height: 5px;">
+                <div id="password-strength" nonce="{{ csp_nonce() }}" class="progress-bar" role="progressbar"></div>
+            </div>
+            <small id="password-strength-text" class="form-text"></small>
+            {% if form.password.errors %}
+                {% for error in form.password.errors %}
+                    <div class="alert alert-danger" role="alert">
+                        {{ error }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+        <div class="form-floating">
+          {{ form.confirm_password(placeholder="Confirm Password", class="form-control mb-2") }}
+          {{ form.confirm_password.label }}
+            {% if form.confirm_password.errors %}
+              {% for error in form.confirm_password.errors %}
+                <div class="alert alert-danger" role="alert">
+                  {{ error }}
+                </div>
+              {% endfor %}
+            {% endif %}
+        </div>
+        <button class="w-100 btn btn-lg btn-primary" type="submit">Sign up</button>
+        <p class="text-center mt-3">Already registered? <a href="{{ url_for('auth.login') }}">Login now</a></p>
+      </form>
+    </main>
+  </div>
+  <div class="col-md-4"></div>
+</div>
+<script nonce="{{ csp_nonce() }}">
+  document.addEventListener("DOMContentLoaded", function () {
+    const passwordInput = document.getElementById("password");
+    const strengthBar = document.getElementById("password-strength");
+    const strengthText = document.getElementById("password-strength-text");
+
+    passwordInput.addEventListener("input", function () {
+      const password = passwordInput.value;
+      const result = zxcvbn(password);
+
+      const score = result.score;
+      const feedback = result.feedback.suggestions.join(' ') || "Looks good!";
+
+      switch (score) {
+        case 0:
+          strengthBar.className = `progress-bar bg-danger`;
+          strengthText.textContent = "Too weak. " + feedback;
+          break;
+        case 1:
+          strengthBar.className = `progress-bar bg-danger`;
+          strengthText.textContent = "Weak. " + feedback;
+          break;
+        case 2:
+          strengthBar.className = `progress-bar bg-warning`;
+          strengthText.textContent = "Moderate. " + feedback;
+          break;
+        case 3:
+          strengthBar.className = `progress-bar bg-success`;
+          strengthText.textContent = "Strong. " + feedback;
+          break;
+        case 4:
+          strengthBar.className = `progress-bar bg-success`;
+          strengthText.textContent = "Very strong. " + feedback;
+          break;
+        default:
+          strengthBar.className = `progress-bar bg-danger`;
+          strengthText.textContent = "";
+          break;
+      }
+
+      strengthBar.style.width = `${(score + 1) * 20}%`;
+    });
+  });
+</script>
+{% endblock %}
+{% block js %}
+<script type="text/javascript" src="{{ url_for('static', filename='js/zxcvbn.js') }}"></script>
+{% endblock %}

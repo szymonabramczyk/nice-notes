@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>{{ 'Edit Note' if editing else 'Add Note' }}</h1>
+
+    {% if editing and note.is_encrypted and not decrypted_content %}
+        <!-- Decryption form -->
+        <p>This note is encrypted. Please provide the decryption key to edit its content.</p>
+        <form method="POST" action="{{ url_for('views.edit_note', note_id=note.id) }}">
+            {{ decryption_form.hidden_tag() }}
+            <div class="form-group">
+                {{ decryption_form.secret_key.label(class="form-label") }}
+                {{ decryption_form.secret_key(class="form-control") }}
+            </div>
+            <button class="btn btn-primary mt-3" type="submit" name="decrypt">Decrypt Note</button>
+        </form>
+    {% else %}
+        <!-- Add note/Edit note form -->
+        <form method="POST" action="{{ url_for('views.edit_note', note_id=note.id) if editing else url_for('views.add_note') }}">
+            {{ form.hidden_tag() }}
+            <div class="form-group">
+                {{ form.title.label(class="form-label") }}
+                {{ form.title(class="form-control") }}
+            </div>
+            <div class="form-group mt-3">
+                {{ form.content.label(class="form-label") }}
+                {{ form.content(class="form-control") }}
+            </div>
+            <div class="form-check mt-3">
+                {{ form.is_encrypted(class="form-check-input") }}
+                {{ form.is_encrypted.label(class="form-check-label") }}
+            </div>
+            <div class="group mt-3">
+                {{ form.secret_key.label(class="form-label") }}
+                {{ form.secret_key(class="form-control", nonce="{{ csp_nonce() }}", disabled=not form.is_encrypted.data) }}
+            </div>
+            <div class="form-check mt-3">
+                {{ form.is_public(class="form-check-input") }}
+                {{ form.is_public.label(class="form-check-label") }}
+            </div>
+            <div class="form-group mt-3">
+                {{ form.shared_with.label(class="form-label") }}
+                {{ form.shared_with(class="form-control", nonce="{{ csp_nonce() }}") }}
+            </div>
+            <button class="btn btn-success mt-3" type="submit" name="save">Save Changes</button>
+        </form>
+    {% endif %}
+</div>
+{% endblock %}
+
+
+{% block js %}
+<script nonce="{{ csp_nonce() }}">
+        document.addEventListener("DOMContentLoaded", function () {
+            const isEncryptedCheckbox = document.getElementById("is_encrypted");
+            const secretKeyField = document.getElementById("secret_key");
+
+            const isPublicCheckbox = document.getElementById("is_public");
+            const sharedWithField = document.getElementById("shared_with");
+
+            function toggleSecretKey() {
+                if (isEncryptedCheckbox.checked) {
+                    secretKeyField.removeAttribute("disabled");
+                } else {
+                    secretKeyField.setAttribute("disabled", "true");
+                }
+            }
+
+            function toggleSharedWith() {
+                if (isPublicCheckbox.checked) {
+                    sharedWithField.removeAttribute("disabled");
+                    sharedWithField.setAttribute("placeholder", "Everyone if not specified");
+                } else {
+                    sharedWithField.setAttribute("disabled", "true");
+                    sharedWithField.setAttribute("placeholder", "");
+                }
+            }
+
+            isEncryptedCheckbox.addEventListener("change", toggleSecretKey);
+
+            isPublicCheckbox.addEventListener("change", toggleSharedWith);
+
+            toggleSharedWith();
+        });
+    </script>
+{% endblock %}

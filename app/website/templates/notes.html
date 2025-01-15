@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <ul class="nav nav-tabs">
+        <li class="nav-item">
+            <a class="nav-link active" id="my-notes-tab" href="#my-notes" data-bs-toggle="tab">My Notes</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="public-notes-tab" href="#public-notes" data-bs-toggle="tab">Public Notes</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="shared-notes-tab" href="#shared-notes" data-bs-toggle="tab">Shared With Me</a>
+        </li>
+    </ul>
+
+    <div class="tab-content mt-4">
+        <!-- My notes -->
+        <div class="tab-pane fade show active" id="my-notes">
+            {% for note in my_notes %}
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ note.title }}</h5>
+                        <p class="card-text">Created at: {{ note.created_at }}</p>
+                        <a href="{{ url_for('views.view_note', note_id=note.id) }}" class="btn btn-primary">View Note</a>
+                        <a href="{{ url_for('views.edit_note', note_id=note.id) }}" class="btn btn-secondary btn-sm">Edit</a>
+                        <form method="POST" nonce="{{ csp_nonce() }}" action="{{ url_for('views.delete_note', note_id=note.id) }}" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                        </form>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Public notes -->
+        <div class="tab-pane fade" id="public-notes">
+            {% for note in public_notes %}
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ note.title }}</h5>
+                        <p class="card-text">Created by: {{ note.author.username if note.author else "Unknown" }}</p>
+                        <a href="{{ url_for('views.view_note', note_id=note.id) }}" class="btn btn-primary">View Note</a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Shared notes -->
+        <div class="tab-pane fade" id="shared-notes">
+            {% for note in shared_notes %}
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ note.title }}</h5>
+                        <p class="card-text">Shared by: {{ note.author.username if note.author else "Unknown" }} </p>
+                        <a href="{{ url_for('views.view_note', note_id=note.id) }}" class="btn btn-primary">View Note</a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

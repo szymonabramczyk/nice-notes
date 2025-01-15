@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Profile Settings</h2>
+<form method="POST">
+    {{ form.hidden_tag() }}
+    <div class="form-group">
+        <label for="exampleInputUsername1">{{ form.username.label }}</label>
+        {{ form.username(class="form-control", id="exampleInputUsername1", placeholder="Enter username") }}
+    </div>
+    <br>
+    <button type="submit" class="btn btn-primary">{{ form.submit.label }}</button>
+</form>
+<br>
+<div>
+    <a href="{{ url_for('auth.setup_two_factor_auth') }}"><button type="button" class="btn btn-info me-2">Configure Two Factor Authentication</button></a>
+</div>
+{% endblock %}
