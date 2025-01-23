@@ -2,12 +2,15 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h1>{{ note.title }}</h1>
+    <ul class="d-inline-flex p-1 align-items-center">
+        <div class="p-3"><h1>{{ note.title }}</h1></div>
+        <div class="p-3"><h2><a href="{{ url_for('views.list_notes') }}"><button type="button" class="btn btn-light me-2">Back</button></a></h2></div>
+    </ul>
     {% if note.is_encrypted and not content %}
         <p>This note is encrypted. Please provide the decryption key to view its content.</p>
 
         <form method="POST">
-            {{ form.hidden_tag() }}
+            {{ form.csrf_token }}
             <div class="mb-3">
                 {{ form.secret_key.label }}
                 {{ form.secret_key(class="form-control") }}
