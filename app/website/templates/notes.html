@@ -20,11 +20,21 @@
             {% for note in my_notes %}
                 <div class="card mb-3">
                     <div class="card-body">
-                        <h5 class="card-title">{{ note.title }}</h5>
+                        <h5 class="card-title">
+                            <div class="card-title fs-3 mb-3">
+                                {{ note.title }}
+                                {% if note.is_encrypted %}
+                                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" class="bi bi-lock-fill" viewBox="0 0 20 20">
+                                  <path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2m3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2"/>
+                                </svg>
+                                {% endif %}
+                            </div>
+                        </h5>
+
                         <p class="card-text">Created at: {{ note.created_at }}</p>
                         <a href="{{ url_for('views.view_note', note_id=note.id) }}" class="btn btn-primary">View Note</a>
                         <a href="{{ url_for('views.edit_note', note_id=note.id) }}" class="btn btn-secondary btn-sm">Edit</a>
-                        <form method="POST" nonce="{{ csp_nonce() }}" action="{{ url_for('views.delete_note', note_id=note.id) }}" style="display:inline;">
+                        <form method="POST" nonce="{{ csp_nonce() }}" action="{{ url_for('views.delete_note', note_id=note.id) }}" class="form inline">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                             <button type="submit" class="btn btn-danger btn-sm">Delete</button>
                         </form>
@@ -38,7 +48,16 @@
             {% for note in public_notes %}
                 <div class="card mb-3">
                     <div class="card-body">
-                        <h5 class="card-title">{{ note.title }}</h5>
+                        <h5 class="card-title">
+                            <div class="card-title fs-3 mb-3">
+                                {{ note.title }}
+                                {% if note.is_encrypted %}
+                                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" class="bi bi-lock-fill" viewBox="0 0 20 20">
+                                  <path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2m3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2"/>
+                                </svg>
+                                {% endif %}
+                            </div>
+                        </h5>
                         <p class="card-text">Created by: {{ note.author.username if note.author else "Unknown" }}</p>
                         <a href="{{ url_for('views.view_note', note_id=note.id) }}" class="btn btn-primary">View Note</a>
                     </div>
@@ -51,7 +70,16 @@
             {% for note in shared_notes %}
                 <div class="card mb-3">
                     <div class="card-body">
-                        <h5 class="card-title">{{ note.title }}</h5>
+                        <h5 class="card-title">
+                            <div class="card-title fs-3 mb-3">
+                                {{ note.title }}
+                                {% if note.is_encrypted %}
+                                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" class="bi bi-lock-fill" viewBox="0 0 20 20">
+                                  <path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2m3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2"/>
+                                </svg>
+                                {% endif %}
+                            </div>
+                        </h5>
                         <p class="card-text">Shared by: {{ note.author.username if note.author else "Unknown" }} </p>
                         <a href="{{ url_for('views.view_note', note_id=note.id) }}" class="btn btn-primary">View Note</a>
                     </div>
