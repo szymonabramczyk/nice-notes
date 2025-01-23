@@ -1,20 +1,21 @@
-from flask import Blueprint, flash, redirect, url_for, render_template, request, session, jsonify, g
+import random
+import time
+
+from flask import Blueprint, flash, redirect, url_for, render_template, request, session
 from flask_limiter import RateLimitExceeded
 from flask_login import login_user, login_required, logout_user, current_user
 
 from . import bcrypt, db, limiter
-from .forms import RegistrationForm, LoginForm, TwoFactorForm, ProfileForm, ResetPasswordRequestForm, ResetPasswordForm
+from .forms import RegistrationForm, LoginForm, TwoFactorForm, ResetPasswordRequestForm, ResetPasswordForm, \
+    ProfileForm
 from .models import User, DeviceLogin
-from .utils import get_b64encoded_qr_image, send_reset_password_email, notify_new_device, get_client_ip
+from .utils import get_b64encoded_qr_image, send_reset_password_email, notify_new_device, get_client_ip, decrypt_secret
 
-import time
-
-HOME_URL = 'views.home'
+HOME_URL = 'views.list_notes'
 SETUP_2FA_URL = 'auth.setup_two_factor_auth'
 VERIFY_2FA_URL = 'auth.verify_two_factor_auth'
 
 auth = Blueprint('auth', __name__)
-
 
 @auth.route('/register', methods=['GET', 'POST'])
 def register():
@@ -42,8 +43,7 @@ def register():
             )
             db.session.add(device_login)
             db.session.commit()
-            session['username'] = user.username
-
+            session['uid'] = user.id
             flash('You are registered. You have to enable 2-Factor Authentication first to login.', 'success')
             return redirect(url_for(SETUP_2FA_URL))
         except Exception:
@@ -72,8 +72,6 @@ def login():
                 ip_address = get_client_ip()
                 user_agent = request.user_agent.string
 
-                print(request.environ.get('HTTP_X_REAL_IP', request.remote_addr) )
-
                 # check if the device is new
                 existing_device = DeviceLogin.query.filter_by(
                     user_id=user.id, ip_address=ip_address, user_agent=user_agent
@@ -91,7 +89,7 @@ def login():
                     # send a notifying email
                     notify_new_device(user, device_login)
 
-                session['username'] = user.username
+                session['uid'] = user.id
                 if not user.is_two_factor_authentication_enabled:
                     flash(
                         'You have not enabled 2-Factor Authentication. Please enable first to login.', 'info')
@@ -109,7 +107,7 @@ def login():
 
 @auth.errorhandler(RateLimitExceeded)
 def ratelimit_handler(e):
-    flash("Too many login attempts. Please try again later.", "danger")
+    flash("Too many requests. Please try again later.", "danger")
     return redirect(url_for('auth.login'))
 
 
@@ -117,7 +115,7 @@ def ratelimit_handler(e):
 @login_required
 def logout():
     logout_user()
-    session.pop('username', default=None)
+    session.pop('uid', default=None)
     session.clear()
     flash('You have been logged out.', 'success')
     return redirect(url_for('auth.login'))
@@ -128,26 +126,27 @@ def setup_two_factor_auth():
     if current_user.is_authenticated:
         user = current_user
     else:
-        tmp_username = session.get('username')
-        user = User.query.filter_by(username=tmp_username).first()
+        tmp_uid = session.get('uid')
+        user = User.query.filter_by(id=tmp_uid).first()
 
-    secret = user.secret_token
+    secret = decrypt_secret(user.secret_token)
     uri = user.get_authentication_setup_uri()
     base64_qr_image = get_b64encoded_qr_image(uri)
     return render_template('setup-2fa.html', secret=secret, qr_image=base64_qr_image)
 
 
 @auth.route('/verify-2fa', methods=['GET', 'POST'])
+@limiter.limit("5 per minute", methods=['POST'])
 def verify_two_factor_auth():
     if current_user.is_authenticated:
         return redirect(url_for('views.home'))
 
-    tmp_username = session.get('username')
-    if not tmp_username:
+    tmp_uid= session.get('uid')
+    if not tmp_uid:
         flash('Session expired or invalid access. Please log in again.', 'danger')
         return redirect(url_for('auth.login'))
 
-    user = User.query.filter_by(username=tmp_username).first()
+    user = User.query.filter_by(id=tmp_uid).first()
     if not user:
         flash('Invalid user. Please try again.', 'danger')
         return redirect(url_for('auth.login'))
@@ -157,6 +156,7 @@ def verify_two_factor_auth():
         if user.is_otp_valid(form.otp.data):
             if user.is_two_factor_authentication_enabled:
                 login_user(user)
+                session.permanent = True
                 flash('2FA verification successful. You are logged in!', 'success')
                 return redirect(url_for(HOME_URL))
             else:
@@ -164,6 +164,7 @@ def verify_two_factor_auth():
                     user.is_two_factor_authentication_enabled = True
                     db.session.commit()
                     login_user(user)
+                    session.permanent = True
                     flash('2FA setup successful. You are logged in!', 'success')
                     return redirect(url_for(HOME_URL))
                 except Exception:
@@ -180,10 +181,9 @@ def verify_two_factor_auth():
 @auth.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
-    form = ProfileForm(obj=current_user)  # Pre-fill form with current user's data
+    form = ProfileForm(obj=current_user)  # fill the form with current user's data
     if form.validate_on_submit():
         current_user.username = form.username.data
-
         try:
             db.session.commit()
             flash('Profile updated successfully!', 'success')
@@ -196,6 +196,7 @@ def profile():
 
 
 @auth.route("/reset-password", methods=["GET", "POST"])
+@limiter.limit("3 per minute", methods=['POST'])
 def reset_password_request():
     if current_user.is_authenticated:
         return redirect(url_for("views.home"))
@@ -206,6 +207,9 @@ def reset_password_request():
 
         if user:
             send_reset_password_email(user)
+            time.sleep(random.uniform(0, 0.2))
+        else:
+            time.sleep(random.uniform(0.8, 1.8)) # delay to hide the information whether the email exists
 
         flash(
         "Instructions to reset your password were sent to your email address,"
@@ -240,28 +244,8 @@ def reset_password(token, user_id):
         "reset-password.html", title="Reset Password", form=form
     )
 
-# for testing if frontend gives the same results as backend
-
-# @auth.route('/password-strength', methods=['POST'])
-# def password_strength():
-#     data = request.get_json()
-#     password = data.get('password', '')
-#
-#     if not password:
-#         return jsonify({"error": "Password is required"}), 400
-#
-#     analysis = zxcvbn(password)
-#     score = analysis['score']
-#     print(score)
-#     return jsonify({"score": score, "feedback": analysis.get('feedback', {})})
-
-# @auth.before_request
-# def log_request_info():
-#     print(f"Headers: {request.headers}")
-#     print(f"Remote Addr: {request.remote_addr}")
-#     message = request.headers
-
-# @auth.before_request
-# def generate_nonce():
-#     g.csp_nonce = secrets.token_hex(16)
-
+@auth.errorhandler(Exception)
+def handle_exception(e):
+    db.session.rollback()
+    flash('An error occurred.', 'danger')
+    return redirect(url_for('auth.login'))

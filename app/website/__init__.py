@@ -1,5 +1,5 @@
 import os
-from os import path, environ
+from os import path
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
@@ -9,8 +9,10 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_mailman import Mail
 from flask_talisman import Talisman
-from werkzeug.middleware.proxy_fix import ProxyFix
+from flask_paranoid import Paranoid
 from dotenv import load_dotenv
+from werkzeug.middleware.proxy_fix import ProxyFix
+
 
 project_path = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../.env'))
 load_dotenv(project_path)
@@ -22,6 +24,7 @@ bcrypt = Bcrypt()
 csrf = CSRFProtect()
 limiter = Limiter(get_remote_address)
 mail = Mail()
+paranoid = Paranoid()
 
 DB_NAME = "database.db"
 
@@ -30,13 +33,16 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    # app.wsgi_app = ProxyFix(app.wsgi_app, x_for=2, x_proto=1, x_host=1, x_port=1)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
 
     db.init_app(app)
     bcrypt.init_app(app)
     csrf.init_app(app)
     limiter.init_app(app)
     mail.init_app(app)
+    paranoid.init_app(app)
+
+    paranoid.redirect_view = '/'
 
     csp = {
         'default-src': [
@@ -66,7 +72,9 @@ def create_app():
     app.register_blueprint(views, url_prefix='/')
     app.register_blueprint(auth, url_prefix='/')
 
-    from .models import User, Note
+    from .models.note import Note
+    from .models.user import User
+    from .models.device_login import DeviceLogin
 
     create_database(app)
 
@@ -76,7 +84,7 @@ def create_app():
 
     @login_manager.user_loader
     def load_user(user_id):
-        return User.query.filter(User.id == int(user_id)).first()
+        return User.query.filter(User.id == user_id).first()
 
     return app
 
