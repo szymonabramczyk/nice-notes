@@ -1,42 +1,5 @@
-from io import BytesIO
-
-import qrcode
-from base64 import b64encode
-
-from Crypto.Cipher import AES
-import nh3
-from flask import url_for, render_template_string, request
+from flask import url_for, render_template_string
 from flask_mailman import EmailMessage
-
-
-def get_b64encoded_qr_image(data):
-    print(data)
-    qr = qrcode.QRCode(version=1, box_size=10, border=5)
-    qr.add_data(data)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color='black', back_color='white')
-    buffered = BytesIO()
-    img.save(buffered)
-    return b64encode(buffered.getvalue()).decode("utf-8")
-
-
-def encrypt(plaintext, key):
-  aes = AES.new(key, AES.MODE_GCM)
-  ciphertext, tag = aes.encrypt_and_digest(plaintext)
-  return ciphertext, tag, aes.nonce
-
-
-def decrypt(content, key, nonce, tag):
-    aes = AES.new(key, AES.MODE_GCM, nonce)
-    return aes.decrypt_and_verify(content, tag)
-
-
-def sanitize_content(content):
-    allowed_tags = {'b', 'i', 'u', 'a', 'p', 'br', 'em', 'strong', 'h1', 'h2', 'h3', 'h4', 'h5', 'img'}
-    print(content)
-    cleaned = nh3.clean(content.strip(), tags=allowed_tags)
-    print(cleaned)
-    return cleaned
 
 
 def send_reset_password_email(user):
@@ -105,11 +68,3 @@ def notify_new_device(user, device):
     message.content_subtype = "html"
 
     message.send()
-
-
-
-def get_client_ip():
-    if 'X-Forwarded-For' in request.headers:
-        return request.headers['X-Forwarded-For'].split(',')[0].strip()
-    return request.remote_addr
-    # return request.environ.get('HTTP_X_REAL_IP', request.remote_addr)
