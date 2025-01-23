@@ -1,0 +1,6 @@
+.env
+.DS_Store
+*/__pycache__
+website/__pycache__
+app/instance/database.db
+.idea
