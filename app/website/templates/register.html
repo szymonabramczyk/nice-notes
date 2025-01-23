@@ -35,13 +35,13 @@
         <div class="form-floating">
             {{ form.password(placeholder="password", class="form-control mb-2", id="password") }}
             {{ form.password.label }}
-            <div nonce="{{ csp_nonce() }}" class="progress mt-2" style="height: 5px;">
+            <div class="progress height mt-2">
                 <div id="password-strength" nonce="{{ csp_nonce() }}" class="progress-bar" role="progressbar"></div>
             </div>
             <small id="password-strength-text" class="form-text"></small>
             {% if form.password.errors %}
                 {% for error in form.password.errors %}
-                    <div class="alert alert-danger" role="alert">
+                    <<div class="alert alert-danger" role="alert">>
                         {{ error }}
                     </div>
                 {% endfor %}
@@ -65,6 +65,8 @@
   </div>
   <div class="col-md-4"></div>
 </div>
+{% endblock %}
+{% block js %}
 <script nonce="{{ csp_nonce() }}">
   document.addEventListener("DOMContentLoaded", function () {
     const passwordInput = document.getElementById("password");
@@ -109,7 +111,5 @@
     });
   });
 </script>
-{% endblock %}
-{% block js %}
 <script type="text/javascript" src="{{ url_for('static', filename='js/zxcvbn.js') }}"></script>
 {% endblock %}
