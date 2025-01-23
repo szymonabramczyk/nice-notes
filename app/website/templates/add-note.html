@@ -2,13 +2,17 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h1>{{ 'Edit Note' if editing else 'Add Note' }}</h1>
+    <ul class="d-flex flex-wrap p-1 align-items-center">
+        <div class="p-3"><h1>{{ 'Edit Note' if editing else 'Add Note' }}</h1></div>
+        <div class="p-3"><h2><a href="{{ url_for('views.list_notes') }}"><button type="button" class="btn btn-light me-2">Back</button></h2></a></div>
+    </ul>
+
 
     {% if editing and note.is_encrypted and not decrypted_content %}
         <!-- Decryption form -->
         <p>This note is encrypted. Please provide the decryption key to edit its content.</p>
         <form method="POST" action="{{ url_for('views.edit_note', note_id=note.id) }}">
-            {{ decryption_form.hidden_tag() }}
+            {{ decryption_form.csrf_token }}
             <div class="form-group">
                 {{ decryption_form.secret_key.label(class="form-label") }}
                 {{ decryption_form.secret_key(class="form-control") }}
@@ -18,7 +22,7 @@
     {% else %}
         <!-- Add note/Edit note form -->
         <form method="POST" action="{{ url_for('views.edit_note', note_id=note.id) if editing else url_for('views.add_note') }}">
-            {{ form.hidden_tag() }}
+            {{ form.csrf_token }}
             <div class="form-group">
                 {{ form.title.label(class="form-label") }}
                 {{ form.title(class="form-control") }}
@@ -34,6 +38,13 @@
             <div class="group mt-3">
                 {{ form.secret_key.label(class="form-label") }}
                 {{ form.secret_key(class="form-control", nonce="{{ csp_nonce() }}", disabled=not form.is_encrypted.data) }}
+                {% if form.secret_key.errors %}
+                  {% for error in form.secret_key.errors %}
+                    <div class="alert alert-danger" role="alert">
+                      {{ error }}
+                    </div>
+                  {% endfor %}
+                {% endif %}
             </div>
             <div class="form-check mt-3">
                 {{ form.is_public(class="form-check-input") }}
@@ -42,6 +53,13 @@
             <div class="form-group mt-3">
                 {{ form.shared_with.label(class="form-label") }}
                 {{ form.shared_with(class="form-control", nonce="{{ csp_nonce() }}") }}
+                {% if form.shared_with.errors %}
+                  {% for error in form.shared_with.errors %}
+                    <div class="alert alert-danger" role="alert">
+                      {{ error }}
+                    </div>
+                  {% endfor %}
+                {% endif %}
             </div>
             <button class="btn btn-success mt-3" type="submit" name="save">Save Changes</button>
         </form>
@@ -52,36 +70,36 @@
 
 {% block js %}
 <script nonce="{{ csp_nonce() }}">
-        document.addEventListener("DOMContentLoaded", function () {
-            const isEncryptedCheckbox = document.getElementById("is_encrypted");
-            const secretKeyField = document.getElementById("secret_key");
+    document.addEventListener("DOMContentLoaded", function () {
+        const isEncryptedCheckbox = document.getElementById("is_encrypted");
+        const secretKeyField = document.getElementById("secret_key");
 
-            const isPublicCheckbox = document.getElementById("is_public");
-            const sharedWithField = document.getElementById("shared_with");
+        const isPublicCheckbox = document.getElementById("is_public");
+        const sharedWithField = document.getElementById("shared_with");
 
-            function toggleSecretKey() {
-                if (isEncryptedCheckbox.checked) {
-                    secretKeyField.removeAttribute("disabled");
-                } else {
-                    secretKeyField.setAttribute("disabled", "true");
-                }
+        function toggleSecretKey() {
+            if (isEncryptedCheckbox.checked) {
+                secretKeyField.removeAttribute("disabled");
+            } else {
+                secretKeyField.setAttribute("disabled", "true");
             }
+        }
 
-            function toggleSharedWith() {
-                if (isPublicCheckbox.checked) {
-                    sharedWithField.removeAttribute("disabled");
-                    sharedWithField.setAttribute("placeholder", "Everyone if not specified");
-                } else {
-                    sharedWithField.setAttribute("disabled", "true");
-                    sharedWithField.setAttribute("placeholder", "");
-                }
+        function toggleSharedWith() {
+            if (isPublicCheckbox.checked) {
+                sharedWithField.removeAttribute("disabled");
+                sharedWithField.setAttribute("placeholder", "Everyone if not specified");
+            } else {
+                sharedWithField.setAttribute("disabled", "true");
+                sharedWithField.setAttribute("placeholder", "");
             }
+        }
 
-            isEncryptedCheckbox.addEventListener("change", toggleSecretKey);
+        isEncryptedCheckbox.addEventListener("change", toggleSecretKey);
 
-            isPublicCheckbox.addEventListener("change", toggleSharedWith);
+        isPublicCheckbox.addEventListener("change", toggleSharedWith);
 
-            toggleSharedWith();
-        });
-    </script>
+        toggleSharedWith();
+    });
+</script>
 {% endblock %}
