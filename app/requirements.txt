@@ -6,6 +6,7 @@ flask_bcrypt
 flask_limiter 
 flask_mailman
 flask_talisman
+flask_paranoid
 pyotp 
 cryptography
 gunicorn
