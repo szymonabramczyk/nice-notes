@@ -11,4 +11,19 @@
     background-color: #28a745;
 }
 
-.
+.progress.height {
+    height: 5px;
+}
+
+.form.inline {
+    display:inline;
+}
+
+.error.red {
+    color: red;
+}
+
+.qr.image {
+    width:200px;
+    height:200px
+}
