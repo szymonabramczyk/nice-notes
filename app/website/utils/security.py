@@ -9,6 +9,9 @@ from flask import request
 from Crypto.Hash import SHA256
 from Crypto.Signature import pkcs1_15
 from Crypto.PublicKey import RSA
+from itsdangerous import URLSafeSerializer
+
+from .. import Config
 
 
 def get_b64encoded_qr_image(data):
@@ -55,3 +58,12 @@ def verify_signature(content, signature, public_key_pem, is_encrypted):
         return True
     except (ValueError, TypeError):
         return False
+
+
+def encode_id(_id):
+    s = URLSafeSerializer(Config.SECRET_KEY_ENCODE_ID)
+    return s.dumps(_id)
+
+def decode_id(_id):
+    s = URLSafeSerializer(Config.SECRET_KEY_ENCODE_ID)
+    return s.loads(_id)
