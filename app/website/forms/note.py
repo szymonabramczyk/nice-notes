@@ -13,7 +13,6 @@ class NoteForm(FlaskForm):
     shared_with = StringField('Share with (emails separated by commas)', validators=[Optional()], description='Everyone')
 
     def validate_shared_with(form, field):
-        print("No ciekawe")
         if field.data:
             emails = [email.strip() for email in field.data.split(',')]
             for email in emails:
