@@ -21,6 +21,10 @@
               {% endfor %}
             {% endif %}
         </div>
+        <div class="invisible">
+            <input class="form-control mb-2" id="email_{{random_name}}" name="email_{{random_name}}" placeholder="email" type="email" value="">
+            <label for="email_{{random_name}}">Email:</label>
+        </div>
         <div class="form-floating">
           {{ form.password(placeholder="password", class="form-control mb-2") }}
           {{ form.password.label }}
