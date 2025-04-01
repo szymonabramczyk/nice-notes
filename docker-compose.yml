@@ -6,6 +6,9 @@ services:
             context: app
             args:
                 SECRET_KEY: ${SECRET_KEY}
+                SECRET_KEY_SECRET_TOKEN: ${SECRET_KEY_SECRET_TOKEN}
+                SECRET_KEY_RESET_PASSWORD_TOKEN: ${SECRET_KEY_RESET_PASSWORD_TOKEN}
+                SECRET_KEY_ENCODE_ID: ${SECRET_KEY_ENCODE_ID}
                 MAIL_PASSWORD: ${MAIL_PASSWORD}
                 DEFAULT_MAIL_SENDER: ${DEFAULT_MAIL_SENDER}
         env_file:
