@@ -2,11 +2,15 @@ from flask import url_for, render_template_string
 from flask_mailman import EmailMessage
 
 
+
+
 def send_reset_password_email(user):
+    from . import encode_id
+
     reset_password_url = url_for(
         "auth.reset_password",
         token=user.generate_reset_password_token(),
-        user_id=user.id,
+        encoded_id=encode_id(user.id),
         _external=True,
     )
 
