@@ -32,9 +32,9 @@
                         </h5>
 
                         <p class="card-text">Created at: {{ note.created_at }}</p>
-                        <a href="{{ url_for('views.view_note', note_id=note.id) }}" class="btn btn-primary">View Note</a>
-                        <a href="{{ url_for('views.edit_note', note_id=note.id) }}" class="btn btn-secondary btn-sm">Edit</a>
-                        <form method="POST" nonce="{{ csp_nonce() }}" action="{{ url_for('views.delete_note', note_id=note.id) }}" class="form inline">
+                        <a href="{{ url_for('views.view_note', encoded_id=encode_id(note.id)) }}" class="btn btn-primary">View Note</a>
+                        <a href="{{ url_for('views.edit_note', encoded_id=encode_id(note.id)) }}" class="btn btn-secondary btn-sm">Edit</a>
+                        <form method="POST" nonce="{{ csp_nonce() }}" action="{{ url_for('views.delete_note', encoded_id=encode_id(note.id)) }}" class="form inline">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                             <button type="submit" class="btn btn-danger btn-sm">Delete</button>
                         </form>
@@ -59,7 +59,7 @@
                             </div>
                         </h5>
                         <p class="card-text">Created by: {{ note.author.username if note.author else "Unknown" }}</p>
-                        <a href="{{ url_for('views.view_note', note_id=note.id) }}" class="btn btn-primary">View Note</a>
+                        <a href="{{ url_for('views.view_note', encoded_id=encode_id(note.id)) }}" class="btn btn-primary">View Note</a>
                     </div>
                 </div>
             {% endfor %}
@@ -81,7 +81,7 @@
                             </div>
                         </h5>
                         <p class="card-text">Shared by: {{ note.author.username if note.author else "Unknown" }} </p>
-                        <a href="{{ url_for('views.view_note', note_id=note.id) }}" class="btn btn-primary">View Note</a>
+                        <a href="{{ url_for('views.view_note', encoded_id=encode_id(note.id)) }}" class="btn btn-primary">View Note</a>
                     </div>
                 </div>
             {% endfor %}
