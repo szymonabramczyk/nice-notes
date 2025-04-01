@@ -9,13 +9,13 @@ from flask_login import UserMixin
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 from .. import db, bcrypt, Config
-from ..utils.crypto import decrypt_secret
+from ..utils import decrypt_secret
 
 
 class User(db.Model, UserMixin):
     __tablename__ = 'users'
 
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()), unique=True)
+    id = db.Column(db.String(36), primary_key=True, default=lambda: User.generate_unique_id(), unique=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(80), unique=True, nullable=False)
     password = db.Column(db.String(128), nullable=False)
@@ -37,7 +37,7 @@ class User(db.Model, UserMixin):
         raw_secret_token = pyotp.random_base32()
 
         # encrypt secret token
-        encryption_key = hashlib.sha256(Config.SECRET_KEY.encode()).digest()
+        encryption_key = hashlib.sha256(Config.SECRET_KEY_SECRET_TOKEN.encode()).digest()
         aes = AES.new(encryption_key, AES.MODE_GCM)
         ciphertext, tag = aes.encrypt_and_digest(raw_secret_token.encode())
         self.secret_token = base64.b64encode(aes.nonce + tag + ciphertext).decode()
@@ -52,6 +52,12 @@ class User(db.Model, UserMixin):
         self.encrypted_private_key = base64.b64encode(aes.nonce + tag + ciphertext).decode()
         self.public_key = tmp_key.publickey().export_key().decode('utf-8')
 
+    @staticmethod
+    def generate_unique_id():
+        while True:
+            new_id = str(uuid.uuid4())
+            if not User.query.filter_by(id=new_id).first():
+                return new_id
 
     def update_password(self, password):
         self.password = bcrypt.generate_password_hash(password, rounds=Config.BCRYPT_LOG_ROUNDS)
@@ -65,7 +71,7 @@ class User(db.Model, UserMixin):
         return totp.verify(user_otp)
 
     def generate_reset_password_token(self):
-        serializer = URLSafeTimedSerializer(Config.SECRET_KEY)
+        serializer = URLSafeTimedSerializer(Config.SECRET_KEY_RESET_PASSWORD_TOKEN)
 
         return serializer.dumps(self.email, salt=self.password)
 
@@ -75,7 +81,7 @@ class User(db.Model, UserMixin):
         if not user:
             return None
 
-        serializer = URLSafeTimedSerializer(Config.SECRET_KEY)
+        serializer = URLSafeTimedSerializer(Config.SECRET_KEY_RESET_PASSWORD_TOKEN)
         try:
             token_user_email = serializer.loads(
                 token,
