@@ -1,7 +1,7 @@
 import random
 import time
 
-from flask import Blueprint, flash, redirect, url_for, render_template, request, session
+from flask import Blueprint, flash, redirect, url_for, render_template, request, session, current_app
 from flask_limiter import RateLimitExceeded
 from flask_login import login_user, login_required, logout_user, current_user
 
@@ -9,7 +9,8 @@ from . import bcrypt, db, limiter
 from .forms import RegistrationForm, LoginForm, TwoFactorForm, ResetPasswordRequestForm, ResetPasswordForm, \
     ProfileForm
 from .models import User, DeviceLogin
-from .utils import get_b64encoded_qr_image, send_reset_password_email, notify_new_device, get_client_ip, decrypt_secret
+from .utils import get_b64encoded_qr_image, send_reset_password_email, notify_new_device, get_client_ip, decrypt_secret, \
+    encode_id, decode_id
 
 HOME_URL = 'views.list_notes'
 SETUP_2FA_URL = 'auth.setup_two_factor_auth'
@@ -43,7 +44,7 @@ def register():
             )
             db.session.add(device_login)
             db.session.commit()
-            session['uid'] = user.id
+            session['uid'] = encode_id(user.id)
             flash('You are registered. You have to enable 2-Factor Authentication first to login.', 'success')
             return redirect(url_for(SETUP_2FA_URL))
         except Exception:
@@ -53,7 +54,7 @@ def register():
 
 
 @auth.route('/login', methods=['GET', 'POST'])
-@limiter.limit("5 per minute", methods=['POST'])
+@limiter.limit("5 per minute", methods=['POST'], deduct_when=lambda response: response.status_code == 200)
 def login():
     if current_user.is_authenticated:
         if current_user.is_two_factor_authentication_enabled:
@@ -62,6 +63,16 @@ def login():
         else:
             flash('You have not enabled 2-Factor Authentication. Please enable first to login.', 'info')
             return redirect(url_for(SETUP_2FA_URL))
+
+    honeypot = None
+    for key, val in request.form.items():
+        if key.startswith("email"):
+            honeypot = val
+    if honeypot:
+        username = request.form.get('username')
+        password = request.form.get('password')
+        current_app.logger.warning(f"A bot detected. Username: {username}, Password: {password}, Email: {honeypot}")
+        return redirect(url_for('auth.login'))
 
     form = LoginForm(request.form)
 
@@ -89,7 +100,7 @@ def login():
                     # send a notifying email
                     notify_new_device(user, device_login)
 
-                session['uid'] = user.id
+                session['uid'] = encode_id(user.id)
                 if not user.is_two_factor_authentication_enabled:
                     flash(
                         'You have not enabled 2-Factor Authentication. Please enable first to login.', 'info')
@@ -102,13 +113,8 @@ def login():
             time.sleep(0.5)
             flash('Invalid username and/or password.', 'danger')
 
-    return render_template('login.html', form=form)
-
-
-@auth.errorhandler(RateLimitExceeded)
-def ratelimit_handler(e):
-    flash("Too many requests. Please try again later.", "danger")
-    return redirect(url_for('auth.login'))
+    random_name = random.getrandbits(128)
+    return render_template('login.html', form=form, random_name=random_name)
 
 
 @auth.route('/logout')
@@ -126,7 +132,7 @@ def setup_two_factor_auth():
     if current_user.is_authenticated:
         user = current_user
     else:
-        tmp_uid = session.get('uid')
+        tmp_uid = decode_id(session.get('uid'))
         user = User.query.filter_by(id=tmp_uid).first()
 
     secret = decrypt_secret(user.secret_token)
@@ -136,12 +142,12 @@ def setup_two_factor_auth():
 
 
 @auth.route('/verify-2fa', methods=['GET', 'POST'])
-@limiter.limit("5 per minute", methods=['POST'])
+@limiter.limit("5 per minute", methods=['POST'], deduct_when=lambda response: response.status_code == 200)
 def verify_two_factor_auth():
     if current_user.is_authenticated:
         return redirect(url_for('views.home'))
 
-    tmp_uid= session.get('uid')
+    tmp_uid = decode_id(session.get('uid'))
     if not tmp_uid:
         flash('Session expired or invalid access. Please log in again.', 'danger')
         return redirect(url_for('auth.login'))
@@ -196,7 +202,6 @@ def profile():
 
 
 @auth.route("/reset-password", methods=["GET", "POST"])
-@limiter.limit("3 per minute", methods=['POST'])
 def reset_password_request():
     if current_user.is_authenticated:
         return redirect(url_for("views.home"))
@@ -222,10 +227,16 @@ def reset_password_request():
         "reset-password-request.html", title="Reset Password", form=form
     )
 
-@auth.route("/reset-password/<token>/<int:user_id>", methods=["GET", "POST"])
-def reset_password(token, user_id):
+@auth.route("/reset-password/<token>/<encoded_id>", methods=["GET", "POST"])
+def reset_password(token, encoded_id):
     if current_user.is_authenticated:
         return redirect(url_for("views.home"))
+
+    try:
+        user_id = decode_id(encoded_id)
+    except Exception:
+        flash('Invalid note identifier.', 'danger')
+        return redirect(url_for('views.list_notes'))
 
     user = User.validate_reset_password_token(token, user_id)
     if not user:
@@ -244,8 +255,8 @@ def reset_password(token, user_id):
         "reset-password.html", title="Reset Password", form=form
     )
 
-@auth.errorhandler(Exception)
-def handle_exception(e):
-    db.session.rollback()
-    flash('An error occurred.', 'danger')
-    return redirect(url_for('auth.login'))
+
+@auth.errorhandler(RateLimitExceeded)
+def ratelimit_handler(e):
+    flash("Too many requests. Please try again later.", "danger")
+    return redirect(url_for('views.home'))
