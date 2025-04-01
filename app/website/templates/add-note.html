@@ -11,7 +11,7 @@
     {% if editing and note.is_encrypted and not decrypted_content %}
         <!-- Decryption form -->
         <p>This note is encrypted. Please provide the decryption key to edit its content.</p>
-        <form method="POST" action="{{ url_for('views.edit_note', note_id=note.id) }}">
+        <form method="POST" action="{{ url_for('views.edit_note', encoded_id=encode_id(note.id)) }}">
             {{ decryption_form.csrf_token }}
             <div class="form-group">
                 {{ decryption_form.secret_key.label(class="form-label") }}
@@ -21,7 +21,7 @@
         </form>
     {% else %}
         <!-- Add note/Edit note form -->
-        <form method="POST" action="{{ url_for('views.edit_note', note_id=note.id) if editing else url_for('views.add_note') }}">
+        <form method="POST" action="{{ url_for('views.edit_note', encoded_id=encode_id(note.id)) if editing else url_for('views.add_note') }}">
             {{ form.csrf_token }}
             <div class="form-group">
                 {{ form.title.label(class="form-label") }}
