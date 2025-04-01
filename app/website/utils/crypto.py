@@ -21,7 +21,7 @@ def decrypt(content, key, nonce, tag):
 
 def decrypt_secret(encrypted_key):
     try:
-        key = hashlib.sha256(Config.SECRET_KEY.encode()).digest()
+        key = hashlib.sha256(Config.SECRET_KEY_SECRET_TOKEN.encode()).digest()
         data = base64.b64decode(encrypted_key)
         nonce, tag, ciphertext = data[:16], data[16:32], data[32:]
         cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
