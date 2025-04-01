@@ -5,19 +5,16 @@ import markdown
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
 
-from . import db, Config
+from . import db
 from .forms import NoteForm, DecryptForm
 from .models import Note
-from .utils import encrypt, decrypt, decrypt_secret, sanitize_content, verify_signature, generate_signature
+from .utils import encrypt, decrypt, decrypt_secret, sanitize_content, verify_signature, generate_signature, decode_id, \
+    encode_id
 
 views = Blueprint('views', __name__)
 
 @views.route('/')
-@login_required
 def home():
-    if not current_user.is_two_factor_authentication_enabled:
-        flash("You must enable 2-Factor Authentication to access this page.", "danger")
-        return redirect(url_for('auth.setup_two_factor_auth'))
     return render_template("index.html")
 
 
@@ -37,7 +34,7 @@ def add_note():
         encrypted_private_key = current_user.encrypted_private_key
         if not encrypted_private_key:
             flash("An error occurred.", "danger")
-            return redirect(url_for('views.add_note'))
+            return redirect(url_for('views.list_notes'))
 
         # decrypt user's private key
         private_key = decrypt_secret(encrypted_private_key)
@@ -74,9 +71,15 @@ def add_note():
     return render_template('add-note.html', form=form)
 
 
-@views.route('/edit-note/<int:note_id>', methods=['GET', 'POST'])
+@views.route('/edit-note/<encoded_id>', methods=['GET', 'POST'])
 @login_required
-def edit_note(note_id):
+def edit_note(encoded_id):
+    try:
+        note_id = decode_id(encoded_id)
+    except Exception:
+        flash('Invalid note identifier.', 'danger')
+        return redirect(url_for('views.list_notes'))
+
     note = Note.query.filter_by(id=note_id, user_id=current_user.id).first_or_404()
 
     # verify signature
@@ -107,7 +110,7 @@ def edit_note(note_id):
             except Exception:
                 time.sleep(0.3)
                 flash('Invalid decryption key. Please try again.', 'danger')
-                return redirect(url_for('views.edit_note', note_id=note_id))
+                return redirect(url_for('views.edit_note', encoded_id=encode_id(note_id)))
 
         # when save note button is pressed:
         elif 'save' in request.form:
@@ -118,7 +121,8 @@ def edit_note(note_id):
                     editing=True,
                     decryption_form=decryption_form,
                     note=note,
-                    decrypted_content=form.content.data  # keep decrypted content
+                    decrypted_content=form.content.data,  # keep decrypted content
+                    encode_id=encode_id
                 )
 
             note.title = form.title.data
@@ -154,13 +158,19 @@ def edit_note(note_id):
                 db.session.rollback()
                 flash('An error occurred while updating the note. Please try again.', 'danger')
 
-    return render_template('add-note.html', form=form, editing=True, decryption_form=decryption_form, note=note, decrypted_content=decrypted_content)
+    return render_template('add-note.html', form=form, editing=True, decryption_form=decryption_form, note=note, decrypted_content=decrypted_content, encode_id=encode_id)
 
 
 
-@views.route('/delete-note/<int:note_id>', methods=['POST'])
+@views.route('/delete-note/<encoded_id>', methods=['POST'])
 @login_required
-def delete_note(note_id):
+def delete_note(encoded_id):
+    try:
+        note_id = decode_id(encoded_id)
+    except Exception:
+        flash('Invalid note identifier.', 'danger')
+        return redirect(url_for('views.list_notes'))
+
     note = Note.query.filter_by(id=note_id, user_id=current_user.id).first_or_404()
 
     try:
@@ -191,13 +201,20 @@ def list_notes():
         'notes.html',
         my_notes=my_notes,
         public_notes=public_notes,
-        shared_notes=shared_notes
+        shared_notes=shared_notes,
+        encode_id=encode_id
     )
 
 
-@views.route('/view-note/<int:note_id>', methods=['GET', 'POST'])
+@views.route('/view-note/<encoded_id>', methods=['GET', 'POST'])
 @login_required
-def view_note(note_id):
+def view_note(encoded_id):
+    try:
+        note_id = decode_id(encoded_id)
+    except Exception:
+        flash('Invalid note identifier.', 'danger')
+        return redirect(url_for('views.list_notes'))
+
     note = Note.query.filter_by(id=note_id).first_or_404()
 
     # verify signature
@@ -224,7 +241,7 @@ def view_note(note_id):
             except Exception:
                 time.sleep(0.3)
                 flash('Invalid decryption key. Please try again.', 'danger')
-                return redirect(url_for('views.view_note', note_id=note_id))
+                return redirect(url_for('views.view_note', encoded_id=encode_id(note_id)))
     else:
         decrypted_content = note.content
 
